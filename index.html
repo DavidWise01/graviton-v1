@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graviton Star</title>
+<style>
+  :root{
+    --void:#05060d; --ink:#eaf2ff; --mute:#7d86a8;
+    --cyan:#5be7f0; --gold:#ffce6b; --violet:#9a6bff; --rose:#ff5d73;
+    --panel:rgba(10,12,26,.62); --line:rgba(120,140,210,.18);
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --disp:"Space Grotesk",system-ui,-apple-system,Segoe UI,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--void);color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
+  .titlebar{position:fixed;top:16px;left:0;right:0;text-align:center;pointer-events:none;z-index:3}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--mute)}
+  h1{margin:.18em 0 0;font-family:var(--disp);font-size:clamp(22px,3.4vw,38px);font-weight:800;letter-spacing:.14em;
+     text-transform:uppercase;color:#fff;text-shadow:0 0 28px rgba(91,231,240,.35)}
+  /* dashboard */
+  .dash{position:fixed;top:16px;left:16px;width:288px;max-width:calc(100vw - 32px);z-index:4;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px 15px 13px;
+    backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);
+    box-shadow:0 18px 60px rgba(0,0,0,.55)}
+  .dash .lab{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--mute)}
+  .hero{margin-bottom:6px}
+  .hero .lab{color:var(--cyan);letter-spacing:.3em}
+  .gval{display:flex;align-items:baseline;gap:8px;margin:3px 0 2px}
+  .gval b{font-family:var(--disp);font-size:30px;font-weight:800;line-height:1;letter-spacing:.02em}
+  .gval span{font-family:var(--mono);font-size:11px;color:var(--mute)}
+  .state{font-family:var(--mono);font-size:11px;color:var(--gold);min-height:1.3em;margin-bottom:6px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:99px;margin:8px 0 4px;
+    background:linear-gradient(90deg,var(--cyan),var(--violet),var(--rose));outline:none;cursor:pointer}
+  input[type=range].dim{background:#2a3050}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+    background:#fff;border:2px solid var(--cyan);box-shadow:0 0 14px rgba(91,231,240,.8);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--cyan);
+    box-shadow:0 0 14px rgba(91,231,240,.8);cursor:pointer}
+  input[type=range]:focus-visible::-webkit-slider-thumb{outline:2px solid #fff;outline-offset:2px}
+  .ctl{margin:11px 0 0}
+  .ctl .row{display:flex;justify-content:space-between;align-items:baseline}
+  .ctl .v{font-family:var(--mono);font-size:11px;color:var(--ink)}
+  .btns{display:flex;gap:7px;margin-top:13px;flex-wrap:wrap}
+  button{flex:1;min-width:62px;font:inherit;font-size:12px;font-weight:600;color:var(--ink);
+    background:rgba(30,38,66,.7);border:1px solid var(--line);border-radius:9px;padding:8px 6px;cursor:pointer;transition:.14s}
+  button:hover{border-color:var(--cyan);background:rgba(40,52,90,.8)}
+  button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  button.on{border-color:var(--cyan);color:var(--cyan)}
+  .toggles{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+  .toggles button{flex:0 1 auto;min-width:0;padding:5px 9px;font-size:11px;border-radius:8px}
+  /* readouts */
+  .read{position:fixed;top:16px;right:16px;width:236px;max-width:calc(100vw - 32px);z-index:4;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;
+    backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);
+    box-shadow:0 18px 60px rgba(0,0,0,.55);font-family:var(--mono)}
+  .read h2{margin:0 0 9px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--mute);font-weight:600}
+  .read .r{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(120,140,210,.08)}
+  .read .r .k{color:var(--mute)}
+  .read .r .val{color:var(--ink)}
+  .read .r.horizon .val{color:var(--rose)} .read .r.photon .val{color:var(--gold)} .read .r.isco .val{color:var(--cyan)}
+  .hint{position:fixed;bottom:12px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:10.5px;
+    color:var(--mute);pointer-events:none;z-index:3;letter-spacing:.03em}
+  @media (max-width:760px){ .read{top:auto;bottom:42px;right:16px;width:200px} .titlebar{top:10px} }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="titlebar">
+  <div class="eyebrow">spacetime curvature · origin&nbsp;(0,0)</div>
+  <h1>Graviton Star</h1>
+</div>
+
+<div class="dash" id="dash">
+  <div class="hero">
+    <div class="lab">Gravity</div>
+    <div class="gval"><b id="gNum">22</b><span id="gmTxt">GM 17600</span></div>
+    <div class="state" id="state">—</div>
+    <input id="gravity" type="range" min="0" max="100" step="1" value="22" aria-label="Gravity">
+  </div>
+  <div class="ctl">
+    <div class="row"><span class="lab">Orbiting matter</span><span class="v" id="pNum">120</span></div>
+    <input id="parts" class="dim" type="range" min="0" max="300" step="5" value="120" aria-label="Orbiting matter">
+  </div>
+  <div class="ctl">
+    <div class="row"><span class="lab">Time flow</span><span class="v" id="tNum">8.0×</span></div>
+    <input id="time" class="dim" type="range" min="0" max="20" step="0.5" value="8" aria-label="Time flow">
+  </div>
+  <div class="ctl">
+    <div class="row"><span class="lab">Light speed c²</span><span class="v" id="cNum">4000</span></div>
+    <input id="cc" class="dim" type="range" min="1500" max="12000" step="100" value="4000" aria-label="Light speed squared">
+  </div>
+  <div class="btns">
+    <button id="pause">Pause</button>
+    <button id="reset">Reset</button>
+    <button id="rain">+ Infall</button>
+  </div>
+  <div class="toggles">
+    <button id="tGrid" class="on">Grid</button>
+    <button id="tRings" class="on">GR rings</button>
+    <button id="tLens" class="on">Lensing</button>
+    <button id="tTrail" class="on">Trails</button>
+  </div>
+</div>
+
+<div class="read">
+  <h2>Readout · model units</h2>
+  <div class="r horizon"><span class="k">Event horizon r_s</span><span class="val" id="oRs">—</span></div>
+  <div class="r photon"><span class="k">Photon sphere</span><span class="val" id="oPh">—</span></div>
+  <div class="r isco"><span class="k">ISCO (3 r_s)</span><span class="val" id="oIs">—</span></div>
+  <div class="r"><span class="k">v escape · r120</span><span class="val" id="oVe">—</span></div>
+  <div class="r"><span class="k">Time dilation · r120</span><span class="val" id="oTd">—</span></div>
+  <div class="r"><span class="k">In orbit</span><span class="val" id="oAct">—</span></div>
+  <div class="r"><span class="k">Swallowed</span><span class="val" id="oSw">—</span></div>
+  <div class="r"><span class="k">Escaped</span><span class="val" id="oEs">—</span></div>
+</div>
+
+<div class="hint">drag <b>Gravity</b> to collapse the star · click the field to toss matter in</div>
+
+<script>
+"use strict";
+const cv=document.getElementById("c"), ctx=cv.getContext("2d");
+const $=id=>document.getElementById(id);
+const reduce=window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+// ---- state ----
+let W=0,H=0,DPR=1,cx=0,cy=0,scale=1;
+const TILT=1.06, sinT=Math.sin(TILT), cosT=Math.cos(TILT);
+const GRID_R=300;                 // world radius of the sheet
+const SOFT=6, NSUB=4, TRAIL=16, PROBE=120;
+let gravity=22, targetCount=120, TS=8, c2=4000;
+let showGrid=true, showRings=true, showLens=true, trails=true, paused=false;
+let particles=[], stars=[], swallowed=0, escaped=0;
+
+const GM=()=>gravity*800;
+const rs=()=>2*GM()/c2;
+
+// ---- geometry ----
+function depth(r){
+  const A=GM()*0.020, s=14;
+  return Math.max(0, A*(1/Math.sqrt(r*r+s*s) - 1/Math.sqrt(GRID_R*GRID_R+s*s)));
+}
+function project(x,y){
+  const d=depth(Math.hypot(x,y));
+  return [cx + x*scale, cy + (y*cosT + d*sinT)*scale];
+}
+function screenToWorld(mx,my){            // approx inverse (ignores depth)
+  return [ (mx-cx)/scale, (my-cy)/scale/cosT ];
+}
+
+// ---- particles ----
+function spawn(p, near){
+  let x,y;
+  if(near){ x=near[0]; y=near[1]; }
+  else { const a=Math.random()*Math.PI*2, r=60+Math.random()*230; x=Math.cos(a)*r; y=Math.sin(a)*r; }
+  const r=Math.hypot(x,y)||1, vc=Math.sqrt(GM()/r);
+  const f=0.65+Math.random()*0.5, dir=Math.random()<0.5?1:-1;
+  // tangential velocity + small peculiar motion so low-gravity isn't frozen
+  const tx=-y/r, ty=x/r;
+  p.x=x; p.y=y;
+  p.vx=tx*vc*f*dir + (Math.random()-0.5)*6;
+  p.vy=ty*vc*f*dir + (Math.random()-0.5)*6;
+  p.trail=[]; p.hot=Math.random();
+  return p;
+}
+function setCount(n){
+  while(particles.length<n) particles.push(spawn({},null));
+  if(particles.length>n) particles.length=n;
+}
+function resetSim(){ particles=[]; setCount(targetCount); swallowed=0; escaped=0; }
+
+function step(simDt){
+  const g=GM(), rsW=Math.max(rs(),3), sub=simDt/NSUB, rEsc=GRID_R*1.55;
+  for(const p of particles){
+    for(let s=0;s<NSUB;s++){
+      const r2=p.x*p.x+p.y*p.y;
+      const inv=g/Math.pow(r2+SOFT*SOFT,1.5);
+      p.vx-=p.x*inv*sub; p.vy-=p.y*inv*sub;
+      p.x+=p.vx*sub; p.y+=p.vy*sub;
+    }
+    if(trails){ p.trail.push(p.x,p.y); if(p.trail.length>TRAIL*2) p.trail.splice(0,2); }
+    const rr=Math.hypot(p.x,p.y);
+    if(rr<rsW){ swallowed++; spawn(p,null); }
+    else if(rr>rEsc){ escaped++; spawn(p,null); }
+  }
+}
+
+// ---- background starfield ----
+function makeStars(){ stars=[]; const n=reduce?70:150;
+  for(let i=0;i<n;i++) stars.push({ax:Math.random(),ay:Math.random(),m:0.3+Math.random()*0.9,tw:Math.random()*6.28}); }
+
+// ---- color ----
+function ramp(t){ // shallow -> deep curvature
+  t=Math.max(0,Math.min(1,t));
+  const stops=[[0,[70,110,170,.16]],[.45,[64,210,230,.34]],[.78,[150,100,235,.5]],[1,[255,120,200,.72]]];
+  for(let i=0;i<stops.length-1;i++){ const a=stops[i],b=stops[i+1];
+    if(t>=a[0]&&t<=b[0]){ const f=(t-a[0])/(b[0]-a[0]||1), c=a[1],d=b[1];
+      return `rgba(${c[0]+(d[0]-c[0])*f|0},${c[1]+(d[1]-c[1])*f|0},${c[2]+(d[2]-c[2])*f|0},${(c[3]+(d[3]-c[3])*f).toFixed(3)})`; } }
+  return "rgba(255,120,200,.7)";
+}
+
+// ---- draw ----
+const ringR=[]; for(let i=1;i<=20;i++) ringR.push(GRID_R*Math.pow(i/20,1.45));
+const NA=44, ang=[]; for(let i=0;i<=NA;i++) ang.push(i/NA*Math.PI*2);
+
+function drawGrid(){
+  const maxd=depth(ringR[0])||1;
+  // spokes (faint)
+  ctx.lineWidth=1; ctx.strokeStyle="rgba(110,140,210,.10)";
+  for(let a=0;a<24;a++){ const th=a/24*Math.PI*2, cs=Math.cos(th), sn=Math.sin(th);
+    ctx.beginPath();
+    for(let i=0;i<ringR.length;i++){ const [sx,sy]=project(ringR[i]*cs, ringR[i]*sn); i?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy); }
+    ctx.stroke();
+  }
+  // rings (depth-colored)
+  for(let i=0;i<ringR.length;i++){ const rr=ringR[i];
+    ctx.beginPath();
+    for(let k=0;k<ang.length;k++){ const [sx,sy]=project(rr*Math.cos(ang[k]), rr*Math.sin(ang[k])); k?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy); }
+    ctx.closePath(); ctx.lineWidth=i<3?1.6:1; ctx.strokeStyle=ramp(depth(rr)/maxd); ctx.stroke();
+  }
+}
+
+function drawGRRing(rW,color,w){ if(rW<4||rW>GRID_R) return;
+  ctx.beginPath();
+  for(let k=0;k<ang.length;k++){ const [sx,sy]=project(rW*Math.cos(ang[k]), rW*Math.sin(ang[k])); k?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy); }
+  ctx.closePath(); ctx.lineWidth=w; ctx.strokeStyle=color; ctx.save(); ctx.shadowColor=color; ctx.shadowBlur=12; ctx.stroke(); ctx.restore();
+}
+
+function drawStars(){
+  const [sx0,sy0]=project(0,0), g=GM();
+  for(const s of stars){
+    let px=s.ax*W, py=s.ay*H, dx=px-sx0, dy=py-sy0, b=Math.hypot(dx,dy)||1;
+    if(showLens){ const defl=Math.min(b*0.8, 9000*g/(c2*(b+40))); px=sx0+dx/b*(b+defl); py=sy0+dy/b*(b+defl); }
+    let a=s.m*0.6; if(!reduce){ s.tw+=0.03; a*= .65+0.35*Math.sin(s.tw); }
+    ctx.fillStyle=`rgba(200,220,255,${a.toFixed(3)})`;
+    ctx.fillRect(px,py,s.m>0.9?1.6:1, s.m>0.9?1.6:1);
+  }
+}
+
+function drawParticles(){
+  ctx.globalCompositeOperation="lighter";
+  for(const p of particles){
+    if(trails && p.trail.length>=4){
+      ctx.beginPath();
+      for(let i=0;i<p.trail.length;i+=2){ const [sx,sy]=project(p.trail[i],p.trail[i+1]); i?ctx.lineTo(sx,sy):ctx.moveTo(sx,sy); }
+      const sp=Math.hypot(p.vx,p.vy);
+      ctx.lineWidth=1; ctx.strokeStyle=`rgba(${120+sp*1.2|0},${200},${255},.16)`; ctx.stroke();
+    }
+    const [sx,sy]=project(p.x,p.y), sp=Math.min(1,Math.hypot(p.vx,p.vy)/120);
+    const r=1.6+sp*1.4;
+    const grd=ctx.createRadialGradient(sx,sy,0,sx,sy,r*3);
+    grd.addColorStop(0,`rgba(255,255,255,.95)`); grd.addColorStop(.4,`rgba(${150+sp*100|0},${220},255,.8)`); grd.addColorStop(1,"rgba(90,160,255,0)");
+    ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(sx,sy,r*3,0,6.28); ctx.fill();
+  }
+  ctx.globalCompositeOperation="source-over";
+}
+
+function drawStar(){
+  const [sx0,sy0]=project(0,0), rsW=rs(), rsPx=rsW*scale, isBH=rsPx>5;
+  // outer glow / accretion halo
+  ctx.globalCompositeOperation="lighter";
+  const halo=Math.max(34, rsPx*3.2);
+  let g=ctx.createRadialGradient(sx0,sy0,0,sx0,sy0,halo);
+  if(isBH){ g.addColorStop(0,"rgba(255,150,60,.0)"); g.addColorStop(.55,"rgba(255,150,70,.30)"); g.addColorStop(.72,"rgba(255,210,120,.5)"); g.addColorStop(.8,"rgba(255,120,90,.18)"); g.addColorStop(1,"rgba(120,40,120,0)"); }
+  else { g.addColorStop(0,"rgba(255,250,230,.95)"); g.addColorStop(.25,"rgba(255,225,150,.7)"); g.addColorStop(.6,"rgba(120,200,255,.25)"); g.addColorStop(1,"rgba(60,120,255,0)"); }
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(sx0,sy0,halo,0,6.28); ctx.fill();
+  ctx.globalCompositeOperation="source-over";
+
+  if(isBH){
+    // photon ring (1.5 r_s) glow then black horizon disk (foreshortened)
+    ctx.save(); ctx.shadowColor="rgba(255,200,110,.9)"; ctx.shadowBlur=18;
+    ctx.strokeStyle="rgba(255,210,130,.95)"; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.ellipse(sx0,sy0,1.5*rsPx,1.5*rsPx*cosT,0,0,6.28); ctx.stroke(); ctx.restore();
+    ctx.fillStyle="#000"; ctx.beginPath(); ctx.ellipse(sx0,sy0,rsPx,rsPx*cosT,0,0,6.28); ctx.fill();
+    ctx.strokeStyle="rgba(255,150,90,.35)"; ctx.lineWidth=1; ctx.stroke();
+  } else {
+    const rc=6+gravity*0.12;
+    ctx.globalCompositeOperation="lighter";
+    const cg=ctx.createRadialGradient(sx0,sy0,0,sx0,sy0,rc*2);
+    cg.addColorStop(0,"#ffffff"); cg.addColorStop(.5,"#fff0c8"); cg.addColorStop(1,"rgba(255,200,110,0)");
+    ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(sx0,sy0,rc*2,0,6.28); ctx.fill();
+    ctx.globalCompositeOperation="source-over";
+  }
+}
+
+function background(){
+  ctx.fillStyle="#05060d"; ctx.fillRect(0,0,W,H);
+  const neb=ctx.createRadialGradient(W*0.5,H*0.42,0,W*0.5,H*0.42,Math.max(W,H)*0.7);
+  neb.addColorStop(0,"rgba(40,28,86,.35)"); neb.addColorStop(.5,"rgba(20,16,50,.18)"); neb.addColorStop(1,"rgba(5,6,13,0)");
+  ctx.fillStyle=neb; ctx.fillRect(0,0,W,H);
+}
+
+function frame(){
+  background();
+  drawStars();
+  if(showGrid) drawGrid();
+  if(showRings){ const r=rs(); drawGRRing(3*r,"rgba(91,231,240,.7)",1.3); drawGRRing(1.5*r,"rgba(255,206,107,.85)",1.6); drawGRRing(r,"rgba(255,93,115,.95)",1.8); }
+  drawParticles();
+  drawStar();
+}
+
+// ---- loop ----
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(!paused) step(dt*TS);
+  frame();
+  updateReadout();
+  requestAnimationFrame(loop);
+}
+
+// ---- readout / dashboard ----
+function stateLabel(){
+  const r=rs(), Rstar=6+gravity*0.12;
+  if(gravity<3) return "near-flat spacetime · negligible pull";
+  if(r<0.45*Rstar) return "diffuse mass · gentle well";
+  if(r<Rstar)     return "compact star · bound orbits";
+  if(r<1.6*Rstar) return "critical density · photon sphere forming";
+  return "event horizon · black hole";
+}
+function updateReadout(){
+  const r=rs(), g=GM();
+  $("oRs").textContent=r.toFixed(1);
+  $("oPh").textContent=(1.5*r).toFixed(1);
+  $("oIs").textContent=(3*r).toFixed(1);
+  $("oVe").textContent=Math.sqrt(2*g/PROBE).toFixed(1);
+  const td=1-r/PROBE; $("oTd").textContent= td>0 ? td<=0?"—":Math.sqrt(td).toFixed(3) : "inside horizon";
+  $("oAct").textContent=particles.length;
+  $("oSw").textContent=swallowed;
+  $("oEs").textContent=escaped;
+  $("state").textContent=stateLabel();
+  $("gmTxt").textContent="GM "+g;
+}
+
+function resize(){
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  W=window.innerWidth; H=window.innerHeight;
+  cv.width=W*DPR; cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+  cx=W*0.5; cy=H*0.40;
+  scale=0.42*Math.min(W,H)/GRID_R;
+}
+window.addEventListener("resize",resize);
+
+// controls
+$("gravity").oninput=e=>{ gravity=+e.target.value; $("gNum").textContent=gravity; };
+$("parts").oninput=e=>{ targetCount=+e.target.value; $("pNum").textContent=targetCount; setCount(targetCount); };
+$("time").oninput=e=>{ TS=+e.target.value; $("tNum").textContent=TS.toFixed(1)+"×"; };
+$("cc").oninput=e=>{ c2=+e.target.value; $("cNum").textContent=c2; };
+$("pause").onclick=e=>{ paused=!paused; e.target.textContent=paused?"Play":"Pause"; e.target.classList.toggle("on",paused); };
+$("reset").onclick=resetSim;
+$("rain").onclick=()=>{ for(let i=0;i<24;i++){ const p=spawn({},null); const r=Math.hypot(p.x,p.y); // bias toward infall
+    p.vx*=0.35; p.vy*=0.35; particles.push(p);} targetCount=particles.length; $("parts").value=Math.min(300,targetCount); $("pNum").textContent=targetCount; };
+function tgl(id,set){ const b=$(id); b.onclick=()=>{ const v=set(); b.classList.toggle("on",v); }; }
+tgl("tGrid",()=>showGrid=!showGrid);
+tgl("tRings",()=>showRings=!showRings);
+tgl("tLens",()=>showLens=!showLens);
+tgl("tTrail",()=>{ trails=!trails; if(!trails) particles.forEach(p=>p.trail=[]); return trails; });
+cv.addEventListener("pointerdown",e=>{ const w=screenToWorld(e.clientX,e.clientY);
+  if(Math.hypot(w[0],w[1])<GRID_R){ const p=spawn({},w); particles.push(p); targetCount=particles.length; $("parts").value=Math.min(300,targetCount); $("pNum").textContent=targetCount; } });
+
+// boot
+resize(); makeStars(); resetSim();
+$("tNum").textContent=TS.toFixed(1)+"×";
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
